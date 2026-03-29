@@ -5,10 +5,10 @@ from starlette import status
 from models import Todo
 from database import SessionLocal # SessionLocal ile veritabanına bağlantı sağlarız.
 from typing import Annotated #depend için
-
+from routers.auth import get_current_user
 
 router = APIRouter(
-    prefix="/todo", #basına todo/ koyar
+    prefix="/todo", #basına "todo/" koyar
     tags=["Todo"] #auth ile ayırmak için baslık
 )
 
@@ -36,9 +36,14 @@ def get_db():
 # bana bir SessionLocal veritabanı oturumu ver. Tipi SessionLocal olacak ve bu get_db ye bağlı olacak.
 db_dependency = Annotated[SessionLocal, Depends(get_db)]
 
-@router.get("/read_all")
-async def read_all(db: db_dependency ): # bu fonksiyon su db yi kullanacak diyoruz.
-    return db.query(Todo).all() # Todo tablosundaki tüm veriyi getir.
+user_dependency = Annotated[dict, Depends(get_current_user)] #dogrulama için fonksiyonuy getiriyoruz.
+
+# bu fonksiyonun çalışması için bir user a ihtiyac var ve bunu da user_dependency i çalıştırarak bul deriz.
+@router.get("/")
+async def read_all(user: user_dependency, db: db_dependency ): # bu fonksiyon su db yi kullanacak diyoruz.
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    return db.query(Todo).filter(Todo.owner_id == user.get('id')).all()# o kullanıcının butun Todolarını getir.
 
 
 # id ye göre filtreleme
@@ -51,8 +56,11 @@ async def get_read_by_id(db: db_dependency , todo_id: int=Path(gt=0)):
 
 #ekleme
 @router.post("/create_todo",status_code=status.HTTP_201_CREATED)
-async def create_todo(db: db_dependency, todo_request: TodoRequestModel):
-    todo = Todo(**todo_request.dict())
+async def create_todo(user: user_dependency, db: db_dependency, todo_request: TodoRequestModel):
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    # todoyu kaydederken kullanıcı id sini de alıyorum. bunu da json web tokendan almıstım
+    todo = Todo(**todo_request.dict(), owner_id = user.get('id'))
     db.add(todo)
     db.commit()
 

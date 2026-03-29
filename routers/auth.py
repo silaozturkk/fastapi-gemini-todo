@@ -13,8 +13,6 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 
 
-from routers.todo import db_dependency
-
 router = APIRouter(
     prefix="/auth", #authla ilgili olan herseyin basına auth koyar
     tags=["Authentication"] #docsda ayırmak için
@@ -69,6 +67,7 @@ def authenticate_user(username: str, password: str, db):
         return False # esit değilse yanlıs döndür
     return user
 
+# bunu kullanarak her kullanıcı eslesmesini yapabilirim
 #token da gönderdiğimizi kontrol edecepiz bu fonksiyonlar
 #bu fonksiyonun yazılma sebebi biri todolara erişirken o kisi mi değil mi diye kontrol yaparızç
 async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
@@ -107,4 +106,4 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
     token = create_access_token(user.username, user.id, user.role, timedelta(minutes=60))
-    return {"acces_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer"}
