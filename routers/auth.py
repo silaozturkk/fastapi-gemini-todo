@@ -1,7 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette import status
@@ -11,12 +11,14 @@ from models import User
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
-
+from fastapi.templating import Jinja2Templates
 
 router = APIRouter(
     prefix="/auth", #authla ilgili olan herseyin basına auth koyar
     tags=["Authentication"] #docsda ayırmak için
 )
+
+templates = Jinja2Templates(directory="templates/")
 
 #jwt için
 SECRET_KEY = "kjebksbjkbegjb94u8y748wheg8ghf3n"
@@ -83,6 +85,17 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Token is Invalid")
 
 
+
+#frontend bağlama yani tarayıcı istek attığında istenen sayfaya yollama
+@router.get("/login-page")
+def render_login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+#kayıt isteği
+@router.get("/register-page")
+def render_register_page(request: Request):
+    return templates.TemplateResponse("register.html", {"request": request})
+
+
 @router.post("/",status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency,create_user_request: CreateUserRequestModel):
     user = User(
@@ -99,11 +112,19 @@ async def create_user(db: db_dependency,create_user_request: CreateUserRequestMo
 
 
 # fast api kullanıcı adı ve sifresini isteyen bir form olusturmus bunu import ettik. burda kullanırız.
-@router.post("/token")
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
-                                 , db: db_dependency):
+@router.post("/token", response_model = Token)
+async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,Depends()],
+                                 db: db_dependency):
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
     token = create_access_token(user.username, user.id, user.role, timedelta(minutes=60))
-    return {"access_token": token, "token_type": "bearer"}
+    response = RedirectResponse(url="/todo/todo-page", status_code=302)
+
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True
+    )
+
+    return response
