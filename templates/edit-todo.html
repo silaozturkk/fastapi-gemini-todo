@@ -6,7 +6,7 @@
       Let's edit your todo!
     </div>
     <div class="card-body">
-      <form id="editTodoForm">
+      <form id="editTodoForm" method="post" action="/todo/update-todo/{{todo.id}}" >
         <div class="form-group">
           <label>Title</label>
           <input type="text" class="form-control" name="title" value="{{todo.title}}" required>

@@ -124,7 +124,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     response.set_cookie(
         key="access_token",
         value=token,
-        httponly=True
+        path="/"
     )
 
     return response
